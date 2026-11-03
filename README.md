@@ -11,13 +11,6 @@
 9. Environment-specific credentials and secrets are provided through environment variables and are not committed to GitHub.
 10. Terraform infrastructure provisioning is considered optional unless Terraform configuration files are included in the repository.
 
-## Deployment URL
-
-Add your actual EC2 public IP URL here.
-
-## Application API
-
-`/api/hello/`
 
 ## Documentation
 

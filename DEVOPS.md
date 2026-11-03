@@ -16,7 +16,7 @@ This project demonstrates the containerization, automation, and deployment of a 
 | Web Server / Reverse Proxy | Nginx |
 | Containerization | Docker |
 | Container Orchestration | Docker Compose |
-| CI/CD | GitHub Actions |
+| CI/CD | Jenkins |
 | Cloud Infrastructure | AWS EC2 |
 | Container Registry | Docker Hub |
 

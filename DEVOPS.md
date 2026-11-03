@@ -4,7 +4,9 @@
 
 ## 1. Project Overview
 
-This project demonstrates the containerization, automation, and deployment of a full-stack Hello World application using Django (Backend) and React (Frontend).
+This project demonstrates the containerization, CI/CD automation, and deployment of a full-stack Hello World application using Django (Backend) and React (Frontend).
+
+The application is containerized using Docker and Docker Compose. Jenkins is used to automate the CI/CD pipeline, while Docker Hub stores the application images.
 
 ### Technology Stack
 
@@ -19,6 +21,7 @@ This project demonstrates the containerization, automation, and deployment of a 
 | CI/CD | Jenkins |
 | Cloud Infrastructure | AWS EC2 |
 | Container Registry | Docker Hub |
+| Source Code Management | GitHub |
 
 ### Application Architecture
 
@@ -27,6 +30,9 @@ This project demonstrates the containerization, automation, and deployment of a 
 3. Nginx forwards `/api/` requests to the Django backend.
 4. Django processes the request and returns a JSON response.
 5. Docker Compose manages the frontend and backend containers.
+6. Jenkins automates building, pushing, and deploying Docker images.
+
+---
 
 ## 2. Prerequisites
 
@@ -40,8 +46,9 @@ Install the following tools:
 - AWS EC2 account
 - GitHub account
 - Docker Hub account
+- Jenkins
 
-Verify installations:
+### Verify Installations
 
 ```bash
 git --version
@@ -52,9 +59,11 @@ npm --version
 python3 --version
 ```
 
+---
+
 ## 3. Project Setup – Local Environment
 
-### Step 1: Clone the repository
+### Step 1: Clone the Repository
 
 ```bash
 git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git
@@ -62,38 +71,41 @@ git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git
 cd YOUR_REPOSITORY
 ```
 
-### Step 2: Configure environment variables
+### Step 2: Configure Environment Variables
 
 Create a `.env` file using the project's environment variable template.
 
 Example:
 
 ```env
-DOCKERHUB_USERNAME=your_dockerhub_username
+DOCKERHUB_USER=mandhar12
 DJANGO_SECRET_KEY=replace_with_a_secure_secret
+DEBUG=False
+ALLOWED_HOSTS=localhost,127.0.0.1,backend
+API_URL=/api
 ```
 
 Never commit `.env` files or production secrets to GitHub.
 
-### Step 3: Build and start the application
+### Step 3: Build and Start the Application
 
 ```bash
 docker compose up -d --build
 ```
 
-### Step 4: Verify running containers
+### Step 4: Verify Running Containers
 
 ```bash
 docker compose ps
 ```
 
-### Step 5: Check application logs
+### Step 5: Check Application Logs
 
 ```bash
 docker compose logs -f
 ```
 
-### Step 6: Test the backend API
+### Step 6: Test the Backend API
 
 ```bash
 curl http://localhost/api/hello/
@@ -107,7 +119,7 @@ Expected response:
 }
 ```
 
-### Step 7: Access the application
+### Step 7: Access the Application
 
 Open:
 
@@ -115,14 +127,19 @@ Open:
 http://localhost
 ```
 
+---
+
 ## 4. Deployment – AWS EC2
 
-### Step 1: Launch an EC2 instance
+### Step 1: Launch an EC2 Instance
 
-- Launch an Ubuntu EC2 instance.
-- Configure SSH access.
-- Allow inbound HTTP traffic on port 80.
-- Keep SSH access restricted to your IP address.
+Launch an Ubuntu EC2 instance.
+
+Configure the following:
+
+- SSH access on port 22, restricted to your IP.
+- HTTP access on port 80.
+- Appropriate instance type and storage.
 
 ### Step 2: Connect to EC2
 
@@ -130,7 +147,7 @@ http://localhost
 ssh -i your-key.pem ubuntu@YOUR_EC2_PUBLIC_IP
 ```
 
-### Step 3: Install Docker
+### Step 3: Install Docker and Git
 
 ```bash
 sudo apt update
@@ -148,10 +165,11 @@ Verify:
 
 ```bash
 docker --version
+
 docker compose version
 ```
 
-### Step 4: Clone the project
+### Step 4: Clone the Project
 
 ```bash
 git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git
@@ -159,19 +177,24 @@ git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git
 cd YOUR_REPOSITORY
 ```
 
-### Step 5: Configure environment variables
+### Step 5: Configure Environment Variables
 
-Create the production `.env` file with the required secure values.
+Configure the required production environment variables.
 
-Ensure that Django `ALLOWED_HOSTS` includes the required EC2 hostname/IP and the internal Docker service hostname `backend`.
+Ensure that:
 
-### Step 6: Start the application
+- `DJANGO_SECRET_KEY` contains a secure secret.
+- `DEBUG=False` is configured.
+- Django `ALLOWED_HOSTS` includes the required EC2 hostname/IP and internal Docker service hostname.
+- `API_URL=/api` is configured where required by the frontend.
+
+### Step 6: Start the Application
 
 ```bash
 docker compose up -d --build
 ```
 
-### Step 7: Verify deployment
+### Step 7: Verify Deployment
 
 ```bash
 docker compose ps
@@ -191,56 +214,225 @@ Expected HTTP status:
 HTTP/1.1 200 OK
 ```
 
-### Step 8: Access the deployed application
+### Step 8: Access the Deployed Application
 
 ```text
 http://YOUR_EC2_PUBLIC_IP
 ```
 
-## 5. CI/CD Pipeline
+---
 
-GitHub Actions is used to automate the application build and deployment workflow.
+## 5. CI/CD Pipeline – Jenkins
 
-The intended pipeline workflow includes:
+Jenkins is used to automate the complete CI/CD process.
 
-1. Developer pushes code to GitHub.
-2. GitHub Actions detects the push.
-3. The workflow checks out the source code.
-4. Docker images are built for the frontend and backend.
-5. Images are pushed to Docker Hub using GitHub Secrets.
-6. The deployment stage updates the application on the server, if configured.
+The pipeline is implemented using a declarative Jenkinsfile.
 
-### Required GitHub Secrets
+### Jenkins CI/CD Workflow
 
-Configure the required credentials under:
+The pipeline follows these stages:
 
-GitHub Repository → Settings → Secrets and variables → Actions.
+1. Developer pushes code to the GitHub repository.
+2. Jenkins detects repository changes using SCM polling.
+3. Jenkins checks out the latest source code.
+4. Jenkins builds the backend Docker image.
+5. Jenkins builds the frontend Docker image.
+6. Jenkins authenticates with Docker Hub using Jenkins credentials.
+7. Jenkins pushes both images to Docker Hub.
+8. Jenkins deploys the latest images using Docker Compose.
+9. Jenkins removes unused dangling Docker images.
 
-Examples:
+### Pipeline Architecture
 
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
-- `EC2_HOST`
-- `EC2_USERNAME`
-- `EC2_SSH_KEY`
+```text
+       Developer
+           |
+           v
+     GitHub Repository
+           |
+           v
+    Jenkins SCM Polling
+      (Every 2 Minutes)
+           |
+           v
+       Checkout
+           |
+           v
+      Build Images
+           |
+       +---+---+
+       |       |
+       v       v
+    Backend  Frontend
+     Image     Image
+       |       |
+       +---+---+
+           |
+           v
+      Docker Hub
+           |
+           v
+        Deploy
+           |
+           v
+     Docker Compose
+           |
+           v
+    Running Application
+        on EC2
+```
 
-Only add secrets that are actually referenced by your workflow.
+### Jenkins Pipeline Stages
 
-Never hardcode passwords, private keys, or access tokens in workflow files.
+#### Stage 1: Checkout
 
-### Verify CI/CD execution
+Jenkins checks out the latest source code from the configured GitHub repository.
 
-1. Open the GitHub repository.
-2. Select the Actions tab.
-3. Open the latest workflow execution.
-4. Verify that all configured jobs complete successfully.
-5. Push a fresh commit and verify that the workflow triggers again.
+```groovy
+stage('Checkout') {
+    steps {
+        checkout scm
+    }
+}
+```
+
+#### Stage 2: Build Images
+
+Jenkins builds Docker images for the frontend and backend.
+
+```groovy
+docker build -t mandhar12/devops-backend:$IMAGE_TAG ./backend
+
+docker build -t mandhar12/devops-frontend:$IMAGE_TAG ./frontend
+```
+
+Each image receives two tags:
+
+- Build number tag.
+- Latest tag.
+
+Example:
+
+```text
+mandhar12/devops-backend:15
+mandhar12/devops-backend:latest
+
+mandhar12/devops-frontend:15
+mandhar12/devops-frontend:latest
+```
+
+#### Stage 3: Push Images
+
+Jenkins authenticates with Docker Hub using stored Jenkins credentials.
+
+Credential ID:
+
+```text
+dockerhub-creds
+```
+
+Jenkins pushes the versioned and latest images to Docker Hub.
+
+#### Stage 4: Deploy
+
+Jenkins securely injects the Django secret key using Jenkins credentials.
+
+The pipeline executes:
+
+```bash
+docker compose pull
+
+docker compose up -d --remove-orphans
+
+docker image prune -f
+```
+
+This pulls the latest images from Docker Hub and updates the running application using Docker Compose.
+
+### Jenkins Credentials Configuration
+
+Configure the following credentials in Jenkins:
+
+Navigate to:
+
+```text
+Jenkins Dashboard
+    → Manage Jenkins
+    → Credentials
+    → System
+    → Global credentials
+    → Add Credentials
+```
+
+**Credential 1: Docker Hub**
+
+| Setting | Value |
+|---|---|
+| Kind | Username with password |
+| ID | dockerhub-creds |
+| Username | Your Docker Hub username |
+| Password | Docker Hub access token |
+
+**Credential 2: Django Secret Key**
+
+| Setting | Value |
+|---|---|
+| Kind | Secret text |
+| ID | django-secret-key |
+| Secret | Your Django secret key |
+
+Never hardcode passwords, private keys, or access tokens in Jenkinsfile.
+
+### SCM Polling Configuration
+
+The Jenkinsfile uses:
+
+```groovy
+triggers {
+    pollSCM('H/2 * * * *')
+}
+```
+
+This checks the GitHub repository approximately every two minutes for changes.
+
+**Why SCM Polling instead of Webhooks?**
+
+Port 8080 on the Jenkins server is closed to public internet access.
+
+Therefore, GitHub cannot directly send webhook requests to Jenkins.
+
+SCM polling allows Jenkins to periodically check the repository for new commits without requiring an externally accessible webhook endpoint.
+
+### Pipeline Execution
+
+To execute the pipeline:
+
+1. Open Jenkins Dashboard.
+2. Select the configured pipeline job.
+3. Click Build Now.
+4. Open the latest build.
+5. Select Console Output.
+6. Verify that all stages complete successfully.
+
+### Verify Docker Hub Images
+
+Open Docker Hub and check the following repositories:
+
+```text
+mandhar12/devops-backend
+
+mandhar12/devops-frontend
+```
+
+Verify that both `latest` and build-number tags are available.
+
+---
 
 ## 6. Troubleshooting Log
 
-During deployment, I encountered a frontend-to-backend connectivity issue.
+During deployment, I encountered frontend-to-backend connectivity and Django host configuration issues.
 
-### Issue 1: Frontend displayed Connection Failed
+### Issue 1: Frontend Displayed Connection Failed
 
 **Problem:**
 
@@ -283,27 +475,33 @@ python -c "import urllib.request; print(urllib.request.urlopen('http://localhost
 
 The Django API returned a successful JSON response.
 
-**Root cause:**
+**Root Cause:**
 
 The React application was using:
 
-```typescript
+```javascript
 axios.get('http://localhost:8000/api/hello/')
 ```
 
-The browser interpreted `localhost` as the user's own computer rather than the EC2 backend.
+The browser interpreted localhost as the user's own computer rather than the EC2 backend.
 
 **Solution:**
 
-Updated `frontend/src/App.tsx`:
+Updated:
 
-```typescript
+```text
+frontend/src/App.tsx
+```
+
+Changed the API request to:
+
+```javascript
 axios.get('/api/hello/')
 ```
 
 This allowed the browser to send the API request to Nginx on the same origin.
 
-### Issue 2: Django returned HTTP 400 Bad Request
+### Issue 2: Django Returned HTTP 400 Bad Request
 
 **Problem:**
 
@@ -323,7 +521,7 @@ wget -O- http://backend:8000/api/hello/
 
 Docker networking resolved the hostname successfully.
 
-**Root cause:**
+**Root Cause:**
 
 Django was rejecting the internal Docker hostname because it was not configured in `ALLOWED_HOSTS`.
 
@@ -364,83 +562,150 @@ HTTP/1.1 200 OK
 
 The issue was resolved by correcting the frontend API URL and Django host configuration.
 
+---
+
 ## 7. Security Best Practices
 
 - Run application containers as non-root users.
 - Use multi-stage Docker builds where appropriate.
 - Maintain `.dockerignore` files.
 - Never commit `.env` files or secrets.
-- Use GitHub Actions Secrets for CI/CD credentials.
+- Store Docker Hub credentials in Jenkins Credentials.
+- Store Django secret keys securely in Jenkins Credentials.
 - Restrict EC2 security group access.
-- Use specific Django `ALLOWED_HOSTS` values.
+- Use specific Django `ALLOWED_HOSTS` values instead of wildcards.
 - Use versioned Docker image tags.
 - Avoid exposing the Django backend port publicly unless required.
+- Keep Jenkins and Docker updated.
+- Use HTTPS for production application access.
+
+**Important:** The current Jenkins deployment stage sets `ALLOWED_HOSTS='*'` for convenience. For production, replace this with specific trusted hostnames and IP addresses.
+
+---
 
 ## 8. Useful Docker Commands
 
-Check running containers:
+### Check Running Containers
 
 ```bash
 docker ps
 ```
 
-Check all containers:
+### Check All Containers
 
 ```bash
 docker ps -a
 ```
 
-View container logs:
+### View Container Logs
 
 ```bash
 docker logs CONTAINER_NAME
 ```
 
-Stop application:
+### View Docker Compose Logs
+
+```bash
+docker compose logs -f
+```
+
+### Stop Application
 
 ```bash
 docker compose down
 ```
 
-Restart application:
+### Restart Application
 
 ```bash
 docker compose restart
 ```
 
-Rebuild application:
+### Rebuild Application
 
 ```bash
 docker compose up -d --build
 ```
 
-Check Docker images:
+### Pull Latest Images
+
+```bash
+docker compose pull
+```
+
+### Check Docker Images
 
 ```bash
 docker images
 ```
 
-Check Docker networks:
+### Check Docker Networks
 
 ```bash
 docker network ls
 ```
 
+### Remove Dangling Images
+
+```bash
+docker image prune -f
+```
+
+---
+
 ## 9. Deployment Information
 
-**GitHub Repository:**  
+**GitHub Repository:**
+
+```text
 https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY
+```
 
-**Deployed Application:**  
+**Docker Hub Backend Image:**
+
+```text
+https://hub.docker.com/r/mandhar12/devops-backend
+```
+
+**Docker Hub Frontend Image:**
+
+```text
+https://hub.docker.com/r/mandhar12/devops-frontend
+```
+
+**Deployed Application:**
+
+```text
 http://YOUR_EC2_PUBLIC_IP
+```
 
-**Application API:**  
+**Application API:**
+
+```text
 http://YOUR_EC2_PUBLIC_IP/api/hello/
+```
+
+**CI/CD Tool:**
+
+```text
+Jenkins
+```
+
+---
 
 ## 10. Conclusion
 
-This project demonstrates the implementation of a full-stack application deployment using Docker, Docker Compose, Nginx, Django, React, AWS EC2, and GitHub Actions.
+This project demonstrates the implementation of an automated full-stack application deployment using Django, React, Docker, Docker Compose, Nginx, Jenkins, Docker Hub, and AWS EC2.
 
-The deployment process included containerization, backend/frontend communication, reverse proxy configuration, CI/CD automation, and troubleshooting.
+The project includes:
 
-The project helped demonstrate practical DevOps skills in application deployment, container management, infrastructure operations, and production troubleshooting.
+- Containerization of frontend and backend applications.
+- Automated CI/CD pipeline using Jenkins.
+- Automated Docker image building and tagging.
+- Docker Hub image publishing.
+- Automated deployment using Docker Compose.
+- Jenkins credential management.
+- Frontend and backend connectivity troubleshooting.
+- Application deployment and verification on AWS EC2.
+
+Through this project, I gained practical experience in CI/CD automation, Docker container management, Jenkins pipeline implementation, cloud deployment, and production troubleshooting.

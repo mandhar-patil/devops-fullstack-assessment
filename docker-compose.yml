@@ -9,6 +9,8 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-*}
     expose:
       - "8000"
+    networks:
+      - devops-network
 
   frontend:
     build:
@@ -21,3 +23,10 @@ services:
       - "80:8080"
     depends_on:
       - backend
+    networks:
+      - devops-network
+
+networks:
+  devops-network:
+    name: devops-network
+    driver: bridge
